@@ -107,20 +107,20 @@ class SessionCatchupCodexTests(unittest.TestCase):
         self.assertEqual("codex", runtime)
         self.assertEqual([session], sessions)
 
-    def test_codex_variant_skips_current_thread_for_same_project(self):
+    def test_codex_variant_prefers_current_thread_for_same_project(self):
         previous = self.write_codex_session(
             "rollout-2026-04-07T00-00-00-previous-thread.jsonl",
-            mtime=100,
-        )
-        self.write_codex_session(
-            "rollout-2026-04-07T01-00-00-current-thread.jsonl",
             mtime=200,
+        )
+        current = self.write_codex_session(
+            "rollout-2026-04-07T01-00-00-current-thread.jsonl",
+            mtime=100,
         )
 
         runtime, sessions = self.codex_candidates(thread_id="current-thread")
 
         self.assertEqual("codex", runtime)
-        self.assertEqual([previous], sessions)
+        self.assertEqual([current, previous], sessions)
 
     def test_codex_variant_skips_small_sessions_and_subagents(self):
         valid = self.write_codex_session(

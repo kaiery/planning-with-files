@@ -135,6 +135,20 @@ def find_current_codex_session(sessions: List[Path]) -> Optional[Path]:
     return None
 
 
+def is_codex_project_session(session: Path, project_cmp: str) -> bool:
+    if not is_substantial_session(session):
+        return False
+
+    meta = read_codex_meta(session)
+    if not meta:
+        return False
+    source = meta.get('source')
+    if isinstance(source, dict) and 'subagent' in source:
+        return False
+    cwd = codex_meta_cwd(meta)
+    return bool(cwd and normalize_for_compare(cwd) == project_cmp)
+
+
 def get_codex_sessions(project_path: str) -> Iterable[Path]:
     sessions_dir = Path(os.path.expanduser(os.getenv('CODEX_SESSIONS_DIR', '~/.codex/sessions')))
     if not sessions_dir.exists():
@@ -143,24 +157,13 @@ def get_codex_sessions(project_path: str) -> Iterable[Path]:
     project_cmp = normalize_for_compare(project_path)
     sessions = sorted(sessions_dir.rglob('rollout-*.jsonl'), key=safe_stat_mtime, reverse=True)
     current = find_current_codex_session(sessions)
-    current_meta = read_codex_meta(current) if current else None
-    current_cwd = codex_meta_cwd(current_meta) if current_meta else None
-    skip_current = bool(current_cwd and normalize_for_compare(current_cwd) == project_cmp)
+    if current and is_codex_project_session(current, project_cmp):
+        yield current
 
     for session in sessions:
-        if not is_substantial_session(session):
+        if session == current:
             continue
-        if skip_current and session == current:
-            continue
-
-        meta = read_codex_meta(session)
-        if not meta:
-            continue
-        source = meta.get('source')
-        if isinstance(source, dict) and 'subagent' in source:
-            continue
-        cwd = codex_meta_cwd(meta)
-        if cwd and normalize_for_compare(cwd) == project_cmp:
+        if is_codex_project_session(session, project_cmp):
             yield session
 
 
